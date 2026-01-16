@@ -34,7 +34,6 @@ from tools import SearchManualTool, SearchGiftTool, SearchMarketLawTool
 
 import os
 
-os.chdir("/home/kmjng/TEST_2")
 
 # 1. 환경 설정
 llm = ChatOllama(model="timHan/llama3korean8B4QKM:latest", format="json", temperature=0)

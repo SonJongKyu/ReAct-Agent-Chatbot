@@ -19,7 +19,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-os.chdir("/home/kmjng/TEST_2")
+os.chdir("../raw_data") # 경로 유의
 
 import os
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -56,9 +56,9 @@ def create_vector_store(file_path, save_path):
 if __name__ == "__main__":
     # 각 파일별로 독립된 DB 생성 예시
     data_map = {
-        "total_manual": "./data/온누리상품권_사용자지침서.pdf",  # 테스트 또는 적용할 파일에 맞게 수정하면 됩니다. 
-        "gift": "./data/온누리상품권_사용자지침서.pdf",
-        "market_law": "./data/전통시장법.pdf"
+        "total_manual": "./raw_data/온누리상품권_사용자지침서.pdf",  # 테스트 또는 적용할 파일에 맞게 수정하면 됩니다. 
+        "gift": "./raw_data/온누리상품권_사용자지침서.pdf",
+        "market_law": "./raw_data/전통시장법.pdf"
     }
     
     for target, path in data_map.items():

@@ -1,6 +1,6 @@
 """
 (테스트) 메뉴얼 DB로 가서 검색해오는 tools입니다. 
-여기에 새로 추가하면 init에도 추가해주세요. (호출 시 용이함)
+여기에 새로 추가하면 init에도 추가해주세요. (호출 시 용이)
 """
 
 from langchain_community.vectorstores import FAISS
@@ -18,7 +18,7 @@ class SearchManualTool(BaseTool):
         """매뉴얼 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "db_total_manual", 
+                "./faiss_db/db_total_manual", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
@@ -39,7 +39,7 @@ class SearchGiftTool(BaseTool):
         """상품권 정보 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "db_gift", 
+                "./faiss_db/db_gift", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
@@ -60,7 +60,7 @@ class SearchMarketLawTool(BaseTool):
         """시장 법령 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "db_market_law", 
+                "./faiss_db/db_market_law", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
