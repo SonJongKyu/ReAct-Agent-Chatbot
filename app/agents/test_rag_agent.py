@@ -8,6 +8,7 @@ Agent 기반 RAG 챗봇 시스템
 - 대화 히스토리 유지 (최근 5개)
 
 도구(Tools):
+- tools/search_tools.py에 정의했습니다. 
 - search_manual: 시스템 이용 방법/매뉴얼  << 임시로 지정했습니다.
 - search_gift: 온누리상품권 관련
 - search_market_law: 전통시장 법령
@@ -25,9 +26,11 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
-from langchain.tools import tool
+from langchain_core.tools import Tool
 from langchain.agents import AgentExecutor
 from langchain_core.agents import create_tool_calling_agent
+from tools import SearchManualTool, SearchGiftTool, SearchMarketLawTool
+
 
 import os
 
@@ -41,30 +44,29 @@ embeddings = HuggingFaceEmbeddings(
     encode_kwargs={'normalize_embeddings': True}
 )
 
-# 2. 도구(Tools) 정의: load_db를 개별 도구로 분리
-@tool
-def search_manual(query: str) -> str:
-    """시스템 이용 방법, 매뉴얼, 이용 가이드와 관련된 질문일 때 이 도구를 사용하세요."""
-    vectorstore = FAISS.load_local("db_total_manual", embeddings, allow_dangerous_deserialization=True)
-    docs = vectorstore.as_retriever(search_kwargs={"k": 3}).invoke(query)
-    return "\n".join([d.page_content for d in docs])
+# 2. 도구(Tools) 인스턴스 생성 및 LangChain Tool로 변환
+manual_tool_instance = SearchManualTool(embeddings)
+gift_tool_instance = SearchGiftTool(embeddings)
+law_tool_instance = SearchMarketLawTool(embeddings)
 
-@tool
-def search_gift(query: str) -> str:
-    """온누리상품권 결제, 환불, 가맹점, 카드 등록과 관련된 질문일 때 이 도구를 사용하세요."""
-    vectorstore = FAISS.load_local("db_gift", embeddings, allow_dangerous_deserialization=True)
-    docs = vectorstore.as_retriever(search_kwargs={"k": 3}).invoke(query)
-    return "\n".join([d.page_content for d in docs])
-
-@tool
-def search_market_law(query: str) -> str:
-    """전통시장 법령, 규정, 법적 근거와 관련된 질문일 때 이 도구를 사용하세요."""
-    vectorstore = FAISS.load_local("db_market_law", embeddings, allow_dangerous_deserialization=True)
-    docs = vectorstore.as_retriever(search_kwargs={"k": 3}).invoke(query)
-    return "\n".join([d.page_content for d in docs])
-
-# 도구 리스트 등록
-tools = [search_manual, search_gift, search_market_law]
+# LangChain Tool 형식으로 변환 (기존 @tool 데코레이터와 동일하게 사용)
+tools = [
+    Tool(
+        name=manual_tool_instance.name,
+        description=manual_tool_instance.description,
+        func=manual_tool_instance.run
+    ),
+    Tool(
+        name=gift_tool_instance.name,
+        description=gift_tool_instance.description,
+        func=gift_tool_instance.run
+    ),
+    Tool(
+        name=law_tool_instance.name,
+        description=law_tool_instance.description,
+        func=law_tool_instance.run
+    )
+]
 
 # 3. Step 1 & 2: 질문 재작성 프롬프트
 rewrite_prompt = ChatPromptTemplate.from_template("""
