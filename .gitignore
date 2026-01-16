@@ -64,6 +64,7 @@ Thumbs.db
 # ML / Data (선택)
 # =========================
 data/
+raw_data/
 datasets/
 checkpoints/
 models/

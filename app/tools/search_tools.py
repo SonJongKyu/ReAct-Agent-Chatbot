@@ -18,7 +18,7 @@ class SearchManualTool(BaseTool):
         """매뉴얼 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "./faiss_db/db_total_manual", 
+                "./app/faiss_db/db_total_manual", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
@@ -39,7 +39,7 @@ class SearchGiftTool(BaseTool):
         """상품권 정보 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "./faiss_db/db_gift", 
+                "./app/faiss_db/db_gift", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
@@ -60,7 +60,7 @@ class SearchMarketLawTool(BaseTool):
         """시장 법령 검색 실행"""
         if self.vectorstore is None:
             self.vectorstore = FAISS.load_local(
-                "./faiss_db/db_market_law", 
+                "./app/faiss_db/db_market_law", 
                 self.embeddings, 
                 allow_dangerous_deserialization=True
             )
