@@ -53,14 +53,23 @@ def create_vector_store(file_path, save_path):
     vectorstore.save_local(save_path)
     print(f"Vector store saved at {save_path}")
 
+
 if __name__ == "__main__":
-    # 각 파일별로 독립된 DB 생성 예시
+    # 1. 저장할 메인 경로 설정
+    base_save_path = "./app/faiss_db/"
+    
+    # 폴더가 없으면 생성
+    if not os.path.exists(base_save_path):
+        os.makedirs(base_save_path)
+
     data_map = {
-        "total_manual": "./app/raw_data/통합관리시스템_메뉴얼.pdf",  # 테스트 또는 적용할 파일에 맞게 수정하면 됩니다. 
+        "total_manual": "./app/raw_data/통합관리시스템_메뉴얼.pdf", # 테스트 또는 적용할 파일에 맞게 수정하면 됩니다. 
         "gift": "./app/raw_data/온누리상품권_사용자지침서.pdf",
         "market_law": "./app/raw_data/전통시장법.pdf"
     }
     
     for target, path in data_map.items():
         if os.path.exists(path):
-            create_vector_store(path, f"db_{target}")
+            # 2. 지정하신 경로 뒤에 파일별 이름을 붙여서 저장
+            final_path = os.path.join(base_save_path, f"db_{target}")
+            create_vector_store(path, final_path)
