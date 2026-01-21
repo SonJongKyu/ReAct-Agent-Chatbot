@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph, END
 from app.memory.state import AgentState
 from app.memory.checkpointer import get_or_create_checkpointer
 from app.agents.nodes import (classify_node, direct_answer_node, rewrite_node, agent_node, final_answer_node)
-
+import os 
 
 
 def route_after_classify(state: AgentState) -> str:
@@ -53,6 +53,16 @@ def create_rag_graph():
     # 체크포인터와 함께 컴파일
     checkpointer = get_or_create_checkpointer()
     app = workflow.compile(checkpointer=checkpointer)
+
+    # 그래프 이미지 저장 (파일이 없을 때만 저장)
+    if not os.path.exists("agent_graph.png"):
+        try:
+            graph_image = app.get_graph().draw_mermaid_png()
+            with open("agent_graph.png", "wb") as f:
+                f.write(graph_image)
+            print("[*] 그래프 이미지가 생성되었습니다.")
+        except Exception as e:
+            print(f"[!] 그래프 저장 실패: {e}")
     
     return app
 
