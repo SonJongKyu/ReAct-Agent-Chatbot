@@ -70,7 +70,9 @@ checkpoints/
 models/
 runs/
 wandb/
-
+.db
+*.db-wal
+*.db-shm
 # =========================
 # Misc
 # =========================
