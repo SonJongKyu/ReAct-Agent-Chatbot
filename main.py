@@ -5,15 +5,11 @@ import os
 import sys
 from pathlib import Path
 
-# # 프로젝트 루트 경로 추가
-# project_root = Path(__file__).resolve().parent.parent
-# sys.path.insert(0, str(project_root))
 
-# 
-# 1. 현재 main.py 파일이 있는 폴더(ChatBot/)의 절대 경로를 가져옵니다.
+# 1. 현재 main.py 파일이 있는 폴더(ChatBot/)의 절대 경로
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 2. 파이썬이 모듈을 찾을 때 이 폴더를 가장 먼저 뒤지도록 설정합니다.
+# 2. 파이썬이 모듈을 찾을 때 이 폴더를 가장 먼저 뒤지도록 설정
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 # 
