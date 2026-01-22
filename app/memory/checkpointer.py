@@ -1,7 +1,7 @@
 """
 (260120) Docstring for ChatBot.app.memory.checkpoint
 """
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite import SqliteSaver # 체크포인터 (프로덕션에서는 PostgreSQL이 유리)
 import sqlite3
 import os
 
@@ -25,6 +25,7 @@ def get_or_create_checkpointer():
         print(f"[✓] SQLite 체크포인트 DB 생성: {db_path}")
     
     return _checkpointer
+
 # from langgraph.checkpoint.postgres import PostgresSaver
 # from app.config.database import get_database_url
 
