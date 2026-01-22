@@ -6,19 +6,7 @@ import sys
 from pathlib import Path
 
 
-# # 1. 현재 main.py 파일이 있는 폴더(ChatBot/)의 절대 경로
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# # 2. 파이썬이 모듈을 찾을 때 이 폴더를 가장 먼저 뒤지도록 설정
-# if current_dir not in sys.path:
-#     sys.path.insert(0, current_dir)
-# 
-
-
-# 1. 현재 파일(main.py)의 부모의 부모 폴더(ChatBot/) 경로를 가져옵니다.
 # Path(__file__).resolve()는 main.py의 절대경로
-# .parent는 app/ 폴더
-# .parent.parent는 ChatBot/ 폴더입니다.
 root_dir = str(Path(__file__).resolve().parent.parent)
 
 # 2. 프로젝트 루트를 sys.path에 추가
@@ -26,8 +14,8 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from langchain_core.messages import HumanMessage
-from app.agents.graph import get_or_create_app
-from app.agents.nodes import get_or_create_tools
+from app.agents.agent import get_or_create_app
+from app.agents.agent import get_or_create_tools
 
 def run_rag_agent(user_question: str, user_id: str = "default"):
     """RAG Agent 실행"""
