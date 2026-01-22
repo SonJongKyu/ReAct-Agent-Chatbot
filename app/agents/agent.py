@@ -1,22 +1,13 @@
 """
 Agent 기반 RAG 챗봇 - 통합 파일
 """
-from typing import TypedDict, List, Dict, Annotated
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain_ollama import ChatOllama
-from langchain_huggingface import HuggingFaceEmbeddings
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
-import operator
-
 # ============================================================
 # 1. LLM 및 Embeddings 설정
 # ============================================================
-"""
-(260120) LLM 및 Embeddings 설정
-"""
+
 from langchain_ollama import ChatOllama
 from langchain_huggingface import HuggingFaceEmbeddings
+
 
 def get_json_llm():
     """JSON 형식 강제 LLM (도구 선택/쿼리 재작성용)"""
@@ -70,6 +61,11 @@ def get_or_create_embeddings():
 # 2. State 정의
 # ============================================================
 
+from typing import TypedDict, List, Dict, Annotated
+from langchain_core.messages import BaseMessage
+import operator
+
+
 class AgentState(TypedDict):
     """Agent의 상태 정의"""
     # 기본 필드
@@ -91,11 +87,7 @@ class AgentState(TypedDict):
     classification_reason: str
 
 # ============================================================
-# 3. Tools 정의 (../tools/search_tools.py)
-# ============================================================
-
-# ============================================================
-# 3-2. Tools 호출 (../tools/search_tools.py)
+# 3. Tools 호출
 # ============================================================
 
 from app.tools import SearchManualTool, SearchGiftTool, SearchMarketLawTool
@@ -123,7 +115,9 @@ def get_or_create_tools():
 # ============================================================
 # 4. 프롬프트 정의
 # ============================================================
+
 from langchain_core.prompts import ChatPromptTemplate
+
 
 REWRITE_PROMPT = ChatPromptTemplate.from_template("""
 당신은 질문 재작성 전문가입니다. 
@@ -238,7 +232,8 @@ DIRECT_ANSWER_PROMPT = """당신은 친절한 고객 서비스 챗봇입니다.
 
 import json
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.messages import HumanMessage, AIMessage  
+from langchain_core.messages import HumanMessage, AIMessage
+
 
 
 def classify_node(state: AgentState):
@@ -452,34 +447,32 @@ def final_answer_node(state: AgentState):
 # ============================================================
 # 6. Checkpointer 정의
 # ============================================================
-from langgraph.checkpoint.sqlite import SqliteSaver # 체크포인터 (프로덕션에서는 PostgreSQL이 유리)
-import sqlite3
-import os
+
+from langgraph.checkpoint.memory import MemorySaver
+
 
 _checkpointer = None
 
 def get_or_create_checkpointer():
+    """
+    체크포인터 생성
+    - 개발/테스트: MemorySaver (공식 지원)
+    - 프로덕션: PostgreSQL 등으로 교체 가능
+    """
     global _checkpointer
     if _checkpointer is None:
-        # 프로젝트 루트에 database.db 파일 생성
-        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'database.db')
-        
-        # SQLite 연결 생성
-        conn = sqlite3.connect(db_path, check_same_thread=False)
-        
-        # SqliteSaver 인스턴스 생성
-        _checkpointer = SqliteSaver(conn)
-        
-        # 테이블 생성
-        _checkpointer.setup()
-        
-        print(f"[✓] SQLite 체크포인트 DB 생성: {db_path}")
-    
+        _checkpointer = MemorySaver()
+        print("[✓] Memory 체크포인터 생성")
     return _checkpointer
+
 
 # ============================================================
 # 7. Graph 정의
 # ============================================================
+
+from langgraph.graph import StateGraph, END
+import os
+
 
 
 def route_after_classify(state: AgentState) -> str:
