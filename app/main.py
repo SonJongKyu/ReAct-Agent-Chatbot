@@ -6,6 +6,7 @@ RAG 기반 LangGraph Agent 메인 실행 파일
 import sys
 from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 from app.agents.agent import (
     get_or_create_app,
