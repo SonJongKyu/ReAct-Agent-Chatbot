@@ -39,5 +39,5 @@ class BaseVectorSearchTool(LangChainBaseTool):
                 "page": d.metadata.get("page", None),
             })
 
-        # ✅ dict로 반환 (중요)
+        # dict로 반환
         return {"tool": self.name, "results": results}

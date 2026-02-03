@@ -1,3 +1,9 @@
+---
+title: ChatBot
+app_file: app.py
+sdk: gradio
+sdk_version: 6.4.0
+---
 ````markdown
 # 🤖 ChatBot  
 통합관리시스템 챗봇 서비스 개발

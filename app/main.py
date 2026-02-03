@@ -4,6 +4,7 @@ RAG 기반 LangGraph Agent 메인 실행 파일
 """
 
 import sys
+import json
 from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.messages import AIMessage, ToolMessage
@@ -33,59 +34,108 @@ def run_rag_agent(user_question: str, user_id: str = "default"):
     app = get_or_create_app()
     config = {"configurable": {"thread_id": user_id}}
 
-    # 기존 상태 복원
+    # ===============================
+    # 기존 상태 복원 (Checkpoint 기반)
+    # ===============================
     try:
         state = app.get_state(config)
         messages = list(state.values["messages"]) if state else []
     except Exception:
         messages = []
 
+    # ===============================
     # 최초 실행 시 System Prompt 주입
+    # ===============================
     if not messages:
         tools = get_or_create_tools()
         tools_desc = "\n".join(
             f"- {tool.name}: {tool.description}"
             for tool in tools
         )
-        system_prompt = build_react_system_prompt(tools_desc)
 
+        system_prompt = build_react_system_prompt(tools_desc)
         messages.append(SystemMessage(content=system_prompt))
 
         print("\n[DEBUG] SystemMessage injected (first turn)")
 
+    # ===============================
     # 사용자 질문 추가
+    # ===============================
     messages.append(HumanMessage(content=user_question))
 
-    # Graph 실행 전 입력 상태 로그
+    # ===============================
+    # Graph 실행 전 입력 로그
+    # ===============================
     print("\n[DEBUG] ===== Graph Invoke Input =====")
     for idx, msg in enumerate(messages):
         msg_type = type(msg).__name__
         preview = str(msg.content).replace("\n", " ")[:120]
         print(f"[{idx}] {msg_type}: {preview}")
 
+    # ===============================
     # Graph 실행
+    # ===============================
     result = app.invoke(
         {"messages": messages},
         config=config,
     )
 
+    # ===============================
     # Graph 실행 결과 로그
+    # ===============================
     print("\n[DEBUG] ===== Graph Result Messages =====")
     for idx, msg in enumerate(result["messages"]):
         msg_type = type(msg).__name__
         content_preview = str(msg.content).replace("\n", " ")[:200]
         print(f"[{idx}] {msg_type}: {content_preview}")
 
-    # 최종 답변 반환
+    # ===============================
+    # 답변이 Tool 기반인지 History 기반인지 판별
+    # ===============================
+    print("\n===============================")
+    print("📌 ANSWER SOURCE CHECK")
+    print("===============================")
+
+    # 최종 답변 메시지
     final_message = result["messages"][-1]
 
+    # 직전 메시지 확인
+    if len(result["messages"]) >= 2:
+        prev_message = result["messages"][-2]
+
+        # ToolMessage가 직전에 있으면 Tool 기반 답변
+        if isinstance(prev_message, ToolMessage):
+            print("✅ 이번 답변은 Tool 호출 기반입니다.")
+
+            # Tool 이름까지 출력
+            try:
+                tool_data = json.loads(prev_message.content)
+                tool_name = tool_data.get("tool", "unknown_tool")
+                print(f"사용 Tool: {tool_name}")
+            except Exception:
+                print("ToolMessage JSON 파싱 실패")
+
+        else:
+            print("💬 이번 답변은 Tool 호출을 사용하지 않은 답변입니다.")
+
+    else:
+        print("⚠️ 메시지가 부족하여 판별 불가")
+
+    print("===============================\n")
+
+    # ===============================
+    # 최종 답변 출력
+    # ===============================
     print("\n[DEBUG] ===== Final Answer Selected =====")
     print(f"Type   : {type(final_message).__name__}")
     print(f"Content: {final_message.content}")
 
     return final_message.content
 
+
+# ===============================
 # CLI 실행부
+# ===============================
 if __name__ == "__main__":
     print("=== LangGraph 기반 RAG 챗봇 ===")
 
