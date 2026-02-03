@@ -88,18 +88,53 @@ git clone https://github.com/yourname/ChatBot.git
 cd ChatBot
 ```
 
-### 2. 가상환경 생성 및 활성화
-
-```bash
-python -m venv .venv
-source .venv/bin/activate      # macOS/Linux
-.venv\Scripts\activate         # Windows
-```
-
-### 3. 패키지 설치
+### 2. 패키지 설치
 
 ```bash
 pip install -r requirements.txt
+```
+
+---
+
+## 🔧 가상환경 생성 및 활성화 (Miniconda)
+
+본 프로젝트는 **Miniconda 기반 Conda 환경**에서 실행하도록 구성되어 있습니다.
+
+### 1. Miniconda 설치 (Linux 기준)
+
+Miniconda 설치 가이드:  
+https://www.anaconda.com/docs/getting-started/miniconda/install
+
+```bash
+mkdir -p ~/miniconda3
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+  -O ~/miniconda3/miniconda.sh
+
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+
+rm ~/miniconda3/miniconda.sh
+
+source ~/miniconda3/bin/activate
+conda init --all
+```
+설치 후 터미널 재시작
+
+### 2. Conda 가상환경 생성
+
+```bash
+conda create -n ChatBot python==3.12.1
+```
+
+### 3. Conda 환경 활성화
+
+```bash
+conda activate ChatBot
+```
+활성화되면 프롬프트가 다음과 같이 변경됩니다. 
+
+```bash
+(ChatBot) user@machine:~/ChatBot$
 ```
 
 ---
