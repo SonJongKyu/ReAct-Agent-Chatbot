@@ -50,13 +50,135 @@ from langgraph.graph.message import add_messages
 class AgentState(TypedDict):
     """LangGraph Agent State: messages만 유지"""
     messages: Annotated[Sequence[BaseMessage], add_messages]
-    
-# ============================================================
-# 3. Tools 정의
-# ============================================================
-from app.tools import SearchManualTool, SearchGiftTool, SearchMarketLawTool
 
-# ReAct Agent용 Tool 리스트
+# ============================================================
+# 3. Tools 정의 (통합)
+# ============================================================
+import re
+from typing import Optional, Any, Dict, Type
+from langchain.tools import BaseTool as LangChainBaseTool
+from langchain_community.vectorstores import FAISS
+from pydantic import BaseModel, Field
+
+# ============================================================
+# 3-1. 공통 베이스 클래스
+# ============================================================
+class BaseVectorSearchTool(LangChainBaseTool):
+    """
+    FAISS 기반 검색 Tool 공통 베이스 클래스
+
+    특징:
+    - 최초 실행 시에만 FAISS DB를 로드 (lazy loading)
+    - ToolNode가 dict 형태로 넘기는 query도 자동 처리
+    - 검색 결과를 JSON dict로 반환
+    """
+    
+    embeddings: Optional[object] = None
+    vectorstore: Optional[FAISS] = None
+    
+    # 상속 Tool에서 반드시 지정해야 하는 DB 경로
+    db_path: str = ""
+
+    def __init__(self, embeddings):
+        """embeddings 모델을 주입받아 Tool 초기화"""
+        super().__init__()
+        self.embeddings = embeddings
+        self.vectorstore = None
+
+    def _normalize_query(self, query: Any) -> str:
+        """ToolNode가 dict 형태로 전달을 문자열 query로 정규화"""
+        if isinstance(query, dict):
+            return (query.get("query") or "").strip()
+        return str(query).strip()
+
+    def _load_vectorstore(self):
+        """FAISS DB를 최초 1회만 로드"""
+        if self.vectorstore is None:
+            self.vectorstore = FAISS.load_local(
+                self.db_path,
+                self.embeddings,
+                allow_dangerous_deserialization=True,
+            )
+            print(f"[Tool Loaded] {self.name} → {self.db_path}")
+
+    def _run(self, query: Any) -> Dict[str, Any]:
+        """검색 실행"""
+        query = self._normalize_query(query)
+
+        # 빈 query 방어
+        if not query:
+            return {"tool": self.name, "results": []}
+
+        # VectorStore 준비
+        self._load_vectorstore()
+
+        # 검색 수행
+        retriever = self.vectorstore.as_retriever(search_kwargs={"k": 3})
+        docs = retriever.invoke(query)
+
+        # 결과 정리
+        results = []
+        for doc in docs:
+            results.append(
+                {
+                    "content": doc.page_content,
+                    "source": doc.metadata.get("source", "unknown"),
+                    "page": doc.metadata.get("page", None),
+                }
+            )
+
+        return {"tool": self.name, "results": results}
+
+# ============================================================
+# 3-2. 입력 Schema
+# ============================================================
+class SearchInput(BaseModel):
+    """검색 Tool 입력 형식"""
+    query: str = Field(..., description="검색할 사용자 질문")
+
+# ============================================================
+# 3-3. 구체적인 검색 Tool 클래스들
+# ============================================================
+class SearchManualTool(BaseVectorSearchTool):
+    """통합관리시스템 매뉴얼 검색 Tool"""
+    name: str = "search_manual"
+    description: str = "시스템 이용 방법, 매뉴얼, 이용 가이드와 관련된 질문일 때 이 도구를 사용하세요."
+    args_schema: Type[BaseModel] = SearchInput
+    db_path: str = "./app/faiss_db/db_total_manual"
+
+
+class SearchGiftTool(BaseVectorSearchTool):
+    """온누리상품권 업무 문서 검색 Tool"""
+    name: str = "search_gift"
+    description: str = "온누리상품권 결제, 환불, 가맹점, 카드 등록과 관련된 질문일 때 이 도구를 사용하세요."
+    args_schema: Type[BaseModel] = SearchInput
+    db_path: str = "./app/faiss_db/db_gift"
+
+
+class SearchMarketLawTool(BaseVectorSearchTool):
+    """전통시장법 법령 검색 Tool"""
+    name: str = "search_market_law"
+    description: str = "전통시장 법령, 규정, 법적 근거와 관련된 질문일 때 이 도구를 사용하세요."
+    args_schema: Type[BaseModel] = SearchInput
+    db_path: str = "./app/faiss_db/db_market_law"
+
+    def _run(self, query: str):
+        """검색 실행 후 조항(article) 목록을 추가로 반환"""
+        data = super()._run(query)
+
+        articles = []
+        for r in data["results"]:
+            matches = re.findall(r"(제\d+조의?\d*)", r["content"])
+            articles.extend(matches)
+
+        # 중복 제거 후 추가
+        data["articles"] = list(dict.fromkeys(articles))
+        
+        return data
+
+# ============================================================
+# 3-4. Tool 리스트 생성
+# ============================================================
 _tools = None
 
 def get_or_create_tools():
@@ -73,7 +195,7 @@ def get_or_create_tools():
         ]
 
     return _tools
-
+    
 # ============================================================
 # 4. ReAct 프롬프트 정의 (단일 시스템 프롬프트)
 # ============================================================
@@ -275,7 +397,7 @@ def should_continue(state: AgentState) -> str:
 # ============================================================
 # 6. Checkpointer 정의
 # ============================================================
-from langgraph.checkpoint.sqlite import SqliteSaver # 체크포인터 (프로덕션에서는 PostgreSQL이 유리)
+from langgraph.checkpoint.sqlite import SqliteSaver
 import sqlite3
 import os
 
@@ -305,9 +427,7 @@ def get_or_create_checkpointer():
 # ============================================================
 # 7. Graph 정의
 # ============================================================
-import os
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
 
 def create_rag_graph():
     """Agent ↔ Tool Loop 기반 LangGraph 생성"""
