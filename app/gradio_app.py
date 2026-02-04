@@ -1,10 +1,9 @@
 import gradio as gr
 from app.main import run_rag_agent
 
-
-# ===============================
-# ChatGPT 스타일 중앙정렬 CSS
-# ===============================
+# ============================================================
+# 1. UI 스타일 CSS
+# ============================================================
 CUSTOM_CSS = """
 footer {display:none !important;}
 #api-info {display:none !important;}
@@ -13,27 +12,21 @@ body {
     background: #f7f7f8 !important;
 }
 
-/* ===============================
-   전체 레이아웃 중앙정렬
-=============================== */
+/* 전체 중앙정렬 */
 .gradio-container {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
 }
 
-/* ===============================
-   Header 중앙
-=============================== */
+/* Header */
 #header {
     width: 760px !important;
     text-align: center !important;
     margin: 8px auto 10px auto !important;
 }
 
-/* ===============================
-   Chatbox 중앙
-=============================== */
+/* Chatbox */
 #chatbox {
     width: 760px !important;
     height: calc(100vh - 280px) !important;
@@ -48,9 +41,7 @@ body {
     margin: 0 auto !important;
 }
 
-/* ===============================
-   입력창 wrapper
-=============================== */
+/* 입력창 wrapper */
 #composer_wrap {
     width: 760px !important;
     margin: 15px auto 0 auto !important;
@@ -70,9 +61,7 @@ body {
     margin: 0 auto !important;
 }
 
-/* ===============================
-   Pill 입력창
-=============================== */
+/* Pill 입력창 */
 #composer {
     width: 100% !important;
 
@@ -97,9 +86,7 @@ body {
     border-radius: 26px !important;
 }
 
-/* ===============================
-   Textbox 내부 테두리 완전 제거
-=============================== */
+/* Textbox 내부 */
 #msg {
     flex: 1 !important;
     background: transparent !important;
@@ -122,9 +109,7 @@ body {
     overflow-y: auto !important;
 }
 
-/* ===============================
-   Send 버튼
-=============================== */
+/* Send 버튼 */
 #send_btn {
     all: unset !important;
     cursor: pointer !important;
@@ -145,9 +130,7 @@ body {
     border-radius: 50%;
 }
 
-/* ===============================
-   안내문구 중앙
-=============================== */
+/* 안내문구 */
 #disclaimer {
     width: 100% !important;
     text-align: center !important;
@@ -158,9 +141,7 @@ body {
     margin-top: 8px !important;
 }
 
-/* ===============================
-   typing indicator
-=============================== */
+/* Typing Indicator */
 .typing {
     display: inline-flex;
     gap: 6px;
@@ -180,10 +161,7 @@ body {
     40% {transform:scale(1);}
 }
 
-/* ===============================
-   로그인 모달 중앙정렬
-=============================== */
-
+/* 로그인 모달 */
 #popup_overlay {
     position: fixed !important;
     inset: 0 !important;
@@ -245,12 +223,13 @@ body {
 }
 """
 
-
-# ===============================
-# 사용자별 Respond 함수
-# ===============================
+# ============================================================
+# 2. 사용자별 Respond 함수
+# ============================================================
 def respond(message, history, user_id):
-
+    """사용자 입력 → RAG Agent 실행 → Chatbot 업데이트"""
+    
+    # 입력값 정리
     message = (message or "").strip()
     if not message:
         yield history, ""
@@ -258,9 +237,11 @@ def respond(message, history, user_id):
 
     if history is None:
         history = []
-
+        
+    # (1) 사용자 메시지 추가
     history.append({"role": "user", "content": message})
 
+		# (2) 로딩 표시
     loading = """
     <div class="typing">
         <span></span><span></span><span></span>
@@ -270,18 +251,21 @@ def respond(message, history, user_id):
 
     yield history, ""
 
-    answer = run_rag_agent(message, user_id=user_id)
+		# (3) Agent 실행
+    try:
+        answer = run_rag_agent(message, user_id=user_id)
+    except Exception as e:
+        answer = f"⚠️ 시스템 오류가 발생했습니다."
 
+		# (4) 로딩 → 실제 답변으로 교체
     history[-1] = {"role": "assistant", "content": answer}
-
     yield history, ""
 
-
-# ===============================
-# 로그인 처리 함수
-# ===============================
+# ============================================================
+# 3. 로그인 처리 함수
+# ============================================================
 def start_chat(user_id):
-
+    """사용자 ID 입력 후 채팅 UI 활성화"""
     user_id = (user_id or "").strip()
 
     if not user_id:
@@ -301,17 +285,16 @@ def start_chat(user_id):
         user_id
     )
 
-
-# ===============================
-# UI 구성
-# ===============================
+# ============================================================
+# 4. UI 구성
+# ============================================================
 with gr.Blocks() as demo:
-
+    """Gradio 전체 UI 구성"""
+    
+    # 사용자 ID  상태 저장
     user_state = gr.State("")
 
-    # ===============================
     # 로그인 모달 (최초 화면)
-    # ===============================
     overlay = gr.HTML("<div id='popup_overlay'></div>", visible=True)
 
     with gr.Column(visible=True, elem_id="popup_box") as login_screen:
@@ -327,9 +310,7 @@ with gr.Blocks() as demo:
 
         start_btn = gr.Button("채팅 시작", elem_id="login_btn")
 
-    # ===============================
     # 채팅 화면 (로그인 후 활성화)
-    # ===============================
     with gr.Column(visible=False, elem_id="main_chat_ui") as chat_screen:
 
         with gr.Column(elem_id="header"):
@@ -361,6 +342,7 @@ with gr.Blocks() as demo:
                 elem_id="disclaimer"
             )
 
+				# 이벤트 연결
         send.click(
             respond,
             inputs=[msg, chatbot, user_state],
@@ -373,9 +355,7 @@ with gr.Blocks() as demo:
             outputs=[chatbot, msg]
         )
 
-    # ===============================
     # 로그인 버튼 이벤트
-    # ===============================
     start_btn.click(
         start_chat,
         inputs=[user_id_box],
@@ -388,10 +368,9 @@ with gr.Blocks() as demo:
         outputs=[login_screen, overlay, chat_screen, user_state]
     )
 
-
-# ===============================
-# 실행
-# ===============================
+# ============================================================
+# 6. 실행
+# ============================================================
 if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",

@@ -4,10 +4,8 @@ Agent 기반 RAG 챗봇 - 통합 파일
 # ============================================================
 # 1. LLM 및 Embeddings 설정
 # ============================================================
-
 from langchain_ollama import ChatOllama
 from langchain_huggingface import HuggingFaceEmbeddings
-
 
 def get_react_llm():
     """ReAct Agent용 단일 LLM"""
@@ -16,61 +14,53 @@ def get_react_llm():
         temperature=0
     )
 
-
 def get_embeddings():
-    """Embeddings 모델 (RAG Tool 전용)"""
+    """Embeddings 모델"""
     return HuggingFaceEmbeddings(
         model_name="BAAI/bge-m3",
         model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True}
     )
 
-
-
 # 싱글톤 인스턴스
 _react_llm = None
 _embeddings = None
 
-
 def get_or_create_react_llm():
+    """Agent가 사용할 LLM 싱글톤"""
     global _react_llm
     if _react_llm is None:
         _react_llm = get_react_llm()
     return _react_llm
 
-
 def get_or_create_embeddings():
+    """Tool 검색에 사용할 Embedding 모델 싱글톤"""
     global _embeddings
     if _embeddings is None:
         _embeddings = get_embeddings()
     return _embeddings
 
-
 # ============================================================
 # 2. State 정의
 # ============================================================
-
 from typing import TypedDict, Annotated, Sequence
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
-
 class AgentState(TypedDict):
+    """LangGraph Agent State: messages만 유지"""
     messages: Annotated[Sequence[BaseMessage], add_messages]
-
     
 # ============================================================
 # 3. Tools 정의
 # ============================================================
-
 from app.tools import SearchManualTool, SearchGiftTool, SearchMarketLawTool
 
 # ReAct Agent용 Tool 리스트
 _tools = None
 
-
 def get_or_create_tools():
-    """ReAct Agent가 사용할 Tool 목록"""
+    """Agent가 사용할 Tool 목록 싱글톤"""
     global _tools
 
     if _tools is None:
@@ -84,15 +74,10 @@ def get_or_create_tools():
 
     return _tools
 
-
-
-
 # ============================================================
 # 4. ReAct 프롬프트 정의 (단일 시스템 프롬프트)
 # ============================================================
-
 from langchain_core.messages import SystemMessage
-
 
 def build_react_system_prompt(tools: str) -> str:
     return f"""
@@ -237,10 +222,8 @@ def build_react_system_prompt(tools: str) -> str:
 {tools}
 """.strip()
 
-
-
-
 def create_system_message() -> SystemMessage:
+    """Tool 목록을 포함한 SystemMessage 생성"""
     tools = get_or_create_tools()
     tools_str = "\n".join(
         f"- {tool.name}: {tool.description}"
@@ -249,9 +232,8 @@ def create_system_message() -> SystemMessage:
     return SystemMessage(content=build_react_system_prompt(tools_str))
 
 # ============================================================
-# 5. ReAct Node 정의 (단일 Loop)
+# 5. Node 정의 (단일 Loop)
 # ============================================================
-
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_core.messages import AIMessage
 
@@ -261,6 +243,7 @@ def agent_node(state: AgentState):
     - Tool 실행하지 않음
     - tool_calls 생성 여부만 판단
     """
+    
     print("--- [Agent] Decide Step ---")
 
     llm = get_or_create_react_llm()
@@ -273,13 +256,10 @@ def agent_node(state: AgentState):
         tools=llm_tools,
     )
 
-    return {
-        "messages": [response]
-    }
+    return {"messages": [response]}
 
 # ToolNode
 from langgraph.prebuilt import ToolNode
-
 tool_node = ToolNode(get_or_create_tools())
 
 # 종료 판단 함수 (무한 루프 차단)
@@ -292,11 +272,9 @@ def should_continue(state: AgentState) -> str:
 
     return "continue"
 
-
 # ============================================================
 # 6. Checkpointer 정의
 # ============================================================
-
 from langgraph.checkpoint.sqlite import SqliteSaver # 체크포인터 (프로덕션에서는 PostgreSQL이 유리)
 import sqlite3
 import os
@@ -304,7 +282,9 @@ import os
 _checkpointer = None
 
 def get_or_create_checkpointer():
+    """SQLite 기반 Checkpointer 싱글톤: 사용자별 thread_id 대화 기록 유지"""
     global _checkpointer
+    
     if _checkpointer is None:
         # 프로젝트 루트에 database.db 파일 생성
         db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'database.db')
@@ -322,17 +302,16 @@ def get_or_create_checkpointer():
     
     return _checkpointer
 
-
 # ============================================================
 # 7. Graph 정의
 # ============================================================
-
 import os
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
-
 def create_rag_graph():
+    """Agent ↔ Tool Loop 기반 LangGraph 생성"""
+
     graph = StateGraph(AgentState)
 
     # 노드 등록
@@ -346,10 +325,7 @@ def create_rag_graph():
     graph.add_conditional_edges(
         "agent",
         should_continue,
-        {
-            "continue": "tools",
-            "end": END,
-        },
+        {"continue": "tools", "end": END},
     )
 
     # tool 실행 후 다시 agent
@@ -374,23 +350,19 @@ def create_rag_graph():
 
     return app
 
-
 # ============================================================
 # 8. App Singleton (외부 진입점)
 # ============================================================
-
 _app = None
 
 def get_or_create_app():
-    """
-    LangGraph App을 싱글톤으로 생성/반환
-    main.py에서 이 함수만 호출하면 된다.
-    """
+    """main.py에서 호출하는 단일 진입점"""
     global _app
+    
     if _app is None:
         _app = create_rag_graph()
+        
     return _app
-
 
 __all__ = [
     "get_or_create_app",

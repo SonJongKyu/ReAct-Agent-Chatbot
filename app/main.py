@@ -3,25 +3,13 @@ RAG 기반 LangGraph Agent 메인 실행 파일
 - LangGraph 철학을 해치지 않는 관찰용 로그 포함
 """
 
-import sys
 import json
-from pathlib import Path
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
+from app.agents.agent import get_or_create_app, create_system_message
 
-from app.agents.agent import (
-    get_or_create_app,
-    get_or_create_tools,
-    build_react_system_prompt,
-)
-
-# 프로젝트 루트 경로 설정
-root_dir = str(Path(__file__).resolve().parent.parent)
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
-
-
-# ReAct Agent 실행 함수
+# ============================================================
+# 1. Agent 실행 함수
+# ============================================================
 def run_rag_agent(user_question: str, user_id: str = "default"):
     """
     LangGraph Agent 실행
@@ -32,66 +20,62 @@ def run_rag_agent(user_question: str, user_id: str = "default"):
     """
 
     app = get_or_create_app()
+    
+    # LangGraph Checkpointer 세션 설정
     config = {"configurable": {"thread_id": user_id}}
 
-    # ===============================
-    # 기존 상태 복원 (Checkpoint 기반)
-    # ===============================
+    # 1) 기존 상태 복원 (Checkpoint 기반)
     try:
         state = app.get_state(config)
         messages = list(state.values["messages"]) if state else []
     except Exception:
         messages = []
 
-    # ===============================
-    # 최초 실행 시 System Prompt 주입
-    # ===============================
+    # 2) 최초 실행 시 System Prompt 주입
     if not messages:
-        tools = get_or_create_tools()
-        tools_desc = "\n".join(
-            f"- {tool.name}: {tool.description}"
-            for tool in tools
-        )
+        messages.append(create_system_message())
 
-        system_prompt = build_react_system_prompt(tools_desc)
-        messages.append(SystemMessage(content=system_prompt))
+        print("\n[DEBUG] SystemMessage injected (first session)")
 
-        print("\n[DEBUG] SystemMessage injected (first turn)")
-
-    # ===============================
-    # 사용자 질문 추가
-    # ===============================
+    # 3) 사용자 질문 추가
     messages.append(HumanMessage(content=user_question))
 
-    # ===============================
     # Graph 실행 전 입력 로그
-    # ===============================
+    print_invoke_log(messages)
+
+    # 4) Graph 실행
+    result = app.invoke({"messages": messages}, config=config)
+
+    # Graph 실행 결과 + 답변 판별 로그
+    print_result_log(result)
+
+    # 5) 최종 답변 반환
+    return result["messages"][-1].content
+
+# ============================================================
+# 2. 로그 관리 함수
+# ============================================================
+def print_invoke_log(messages: list):
+    """Graph 실행 전 입력 로그"""
+
     print("\n[DEBUG] ===== Graph Invoke Input =====")
     for idx, msg in enumerate(messages):
         msg_type = type(msg).__name__
         preview = str(msg.content).replace("\n", " ")[:120]
         print(f"[{idx}] {msg_type}: {preview}")
 
-    # ===============================
-    # Graph 실행
-    # ===============================
-    result = app.invoke(
-        {"messages": messages},
-        config=config,
-    )
 
-    # ===============================
+def print_result_log(result: dict):
+    """Graph 실행 결과 로그 + Tool 기반 여부 판별 + 최종 답변 출력"""
+
     # Graph 실행 결과 로그
-    # ===============================
     print("\n[DEBUG] ===== Graph Result Messages =====")
     for idx, msg in enumerate(result["messages"]):
         msg_type = type(msg).__name__
         content_preview = str(msg.content).replace("\n", " ")[:200]
         print(f"[{idx}] {msg_type}: {content_preview}")
 
-    # ===============================
     # 답변이 Tool 기반인지 History 기반인지 판별
-    # ===============================
     print("\n===============================")
     print("📌 ANSWER SOURCE CHECK")
     print("===============================")
@@ -123,19 +107,14 @@ def run_rag_agent(user_question: str, user_id: str = "default"):
 
     print("===============================\n")
 
-    # ===============================
     # 최종 답변 출력
-    # ===============================
     print("\n[DEBUG] ===== Final Answer Selected =====")
     print(f"Type   : {type(final_message).__name__}")
     print(f"Content: {final_message.content}")
 
-    return final_message.content
-
-
-# ===============================
-# CLI 실행부
-# ===============================
+# ============================================================
+# 3. CLI 테스트 실행부
+# ============================================================
 if __name__ == "__main__":
     print("=== LangGraph 기반 RAG 챗봇 ===")
 
