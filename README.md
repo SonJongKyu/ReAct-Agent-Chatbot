@@ -18,7 +18,7 @@ LangGraph 기반의 **ReAct Agent 구조**를 적용하여
 
 - **LangGraph ReAct Agent 기반 Tool Calling**
 - **FAISS 벡터 DB 기반 문서 검색 (PDF)**
-- **업무 질문은 Tool 없이 답변 불가 (Hallucination 방지)**
+- **업무 질문은 Tool 없이 답변 불가 (Hallucination 방지)** 
 - **법령 조항 자동 추출**
 - **Gradio 기반 ChatGPT 스타일 UI**
 - **사용자 ID별 대화 기록 유지 (SQLite Checkpointer)**
